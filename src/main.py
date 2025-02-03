@@ -52,6 +52,9 @@ class App(tk.Tk):
         }
 
         url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
+        
+        print(f"Using access token, {access_token}, to fetch profile data...")
+        
         response = requests.get(url, headers=headers)
 
         # Print response details for debugging
