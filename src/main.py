@@ -100,7 +100,10 @@ class App(tk.Tk):
 
         
     def display_user_user(self, username):
-        self.user_name_label.config(text=f"Welcome, {username}")
+        self.after(0,self._update_username_label, username)
+    
+    def _update_username_label(self, username):
+        self.user_name_label.config(text=f"Welcome, {username}!")
         
 @app.route('/callback')
 def callback():
