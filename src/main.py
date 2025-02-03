@@ -7,6 +7,7 @@ import webbrowser
 import os
 import json
 import threading
+import ctypes
 
 # Bungie API Client Details
 CLIENT_ID = '48933'
@@ -21,6 +22,75 @@ app = Flask(__name__)
 
 # Caching the manifest data to avoid redundant downloads
 CACHE_FILE = "subclass_cache.json"
+
+# Load the DLL (Ensure the DLL is in the same directory or provide the correct path)
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the full path to the DLL
+dll_path = os.path.join(script_dir, "GLedApi.dll")
+
+# Load the DLL
+led_api = ctypes.WinDLL(dll_path)
+
+# Define functions
+led_api.dllexp_InitAPI.argtypes = []
+led_api.dllexp_InitAPI.restype = ctypes.c_uint32
+
+led_api.dllexp_GetMaxDivision.argtypes = []
+led_api.dllexp_GetMaxDivision.restype = ctypes.c_int
+
+led_api.dllexp_SetLedData.argtypes = [ctypes.POINTER(ctypes.c_byte), ctypes.c_int]
+led_api.dllexp_SetLedData.restype = ctypes.c_uint32
+
+led_api.dllexp_Apply.argtypes = [ctypes.c_int]
+led_api.dllexp_Apply.restype = ctypes.c_uint32
+
+# LED setting structure (matches SDK)
+class LEDSETTING(ctypes.Structure):
+    _fields_ = [
+        ("Reserve0", ctypes.c_byte),
+        ("LedMode", ctypes.c_byte),
+        ("MaxBrightness", ctypes.c_byte),
+        ("MinBrightness", ctypes.c_byte),
+        ("dwColor", ctypes.c_uint32),
+        ("wTime0", ctypes.c_ushort),
+        ("wTime1", ctypes.c_ushort),
+        ("wTime2", ctypes.c_ushort),
+        ("CtrlVal0", ctypes.c_byte),
+        ("CtrlVal1", ctypes.c_byte),
+    ]
+
+def set_motherboard_led(color_hex: int, brightness: int = 100):
+    """Set motherboard LED to a given colour."""
+    # Initialise API
+    if led_api.dllexp_InitAPI() != 0:
+        print("Failed to initialise RGB Fusion API")
+        return
+
+    # Get max LED zones
+    max_zones = led_api.dllexp_GetMaxDivision()
+    if max_zones < 1:
+        print("No LED zones found.")
+        return
+
+    # Create LED setting array
+    settings = (LEDSETTING * max_zones)()
+    for i in range(max_zones):
+        settings[i].LedMode = 4  # Static mode
+        settings[i].MaxBrightness = brightness
+        settings[i].MinBrightness = 0
+        settings[i].dwColor = color_hex  # RGB Hex
+
+    # Send data to API
+    result = led_api.dllexp_SetLedData(ctypes.byref(settings), ctypes.sizeof(settings))
+    if result != 0:
+        print("Failed to set LED data")
+
+    # Apply changes
+    if led_api.dllexp_Apply(-1) != 0:
+        print("Failed to apply LED settings")
+
 
 def get_manifest_url():
     print("🟢 Fetching Bungie's manifest URL...")
@@ -208,6 +278,22 @@ class App(tk.Tk):
         else:
             print(f"❌ Subclass Hash Not Found: {subclass_hash}")
             return "Unknown Subclass"
+        
+    def update_motherboard_led(self, subclass_name):
+        """Update the motherboard LED based on the subclass name."""
+        subclass_name = subclass_name.lower()
+        color = 0x9E18E3
+        if subclass_name == "nightstalker" or subclass_name == "voidwalker" or subclass_name == "sentinel":
+            set_motherboard_led(0xB884DC)
+        elif subclass_name == "arcstrider" or subclass_name == "stormcaller" or subclass_name == "striker":
+            set_motherboard_led(0x80BCEC)
+        elif subclass_name == "gunslinger" or subclass_name == "dawnblade" or subclass_name == "sunbreaker":
+            set_motherboard_led(0xF8641C)
+        elif "prismatic" in subclass_name:
+            set_motherboard_led(0xB66C9A)
+        else:
+            set_motherboard_led(color)
+            
 
 @app.route('/callback')
 def callback():
