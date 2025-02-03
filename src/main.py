@@ -92,11 +92,11 @@ class App(tk.Tk):
         if equipped_subclass:
             equipped_super = self.get_super_name(equipped_subclass)
 
-        # Update UI safely
+        # 🔥 Update UI safely on the main thread
         self.after(0, self.display_super, equipped_super)
 
-        # Refresh every 5 seconds
-        self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
+        # 🔄 Refresh every 5 seconds on the main thread
+        self.after(5000, lambda: threading.Thread(target=self.fetch_profile, args=(access_token, membership_id, membership_type)).start())
 
     def get_super_name(self, subclass_hash):
         # Mapping of subclass hashes to Supers
