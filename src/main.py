@@ -161,7 +161,7 @@ def callback():
             'code': request.args['code'],
             'client_id': CLIENT_ID,
             'redirect_uri': REDIRECT_URI
-        }        
+        }
 
         response = requests.post(token_url, data=data)
 
@@ -171,19 +171,42 @@ def callback():
         token = response.json()
 
         access_token = token.get('access_token', None)
-        membership_id = token.get('membership_id', None)
-        expires_in = token.get('expires_in', 'Unknown')
 
         if not access_token:
-            raise ValueError("Access token not found in response")
+            raise ValueError("Access token missing from response")
 
-        # 🔥 Start the profile fetch **immediately** after login
-        app_instance.after(0, lambda: app_instance.fetch_profile(access_token, membership_id, 3))
+        # 🔍 Fetch the correct Destiny 2 membership ID
+        headers = {
+            'X-API-Key': API_KEY,
+            'Authorization': f'Bearer {access_token}'
+        }
+
+        membership_url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
+        response = requests.get(membership_url, headers=headers)
+
+        if response.status_code != 200:
+            raise ValueError("Failed to fetch membership details")
+
+        membership_data = response.json()
+        memberships = membership_data.get("Response", {}).get("destinyMemberships", [])
+
+        if not memberships:
+            raise ValueError("No linked Destiny 2 accounts found!")
+
+        # Get the **correct** membership ID and type
+        membership_id = memberships[0]['membershipId']
+        membership_type = memberships[0]['membershipType']  # Auto-detect platform
+
+        print(f"🟢 Correct Membership ID: {membership_id}, Type: {membership_type}")
+
+        # 🔥 Start the profile fetch with the correct membership ID and type
+        app_instance.after(0, lambda: app_instance.fetch_profile(access_token, membership_id, membership_type))
 
         return "Authentication successful! You can close this window now."
     except Exception as e:
-        messagebox.showerror("Error", "An error occurred during authentication")
+        messagebox.showerror("Error", f"An error occurred: {e}")
         return "An error occurred during authentication."
+
 
 if __name__ == '__main__':
     app_instance = App()
