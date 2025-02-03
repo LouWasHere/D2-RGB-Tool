@@ -1,40 +1,4 @@
 ﻿# D2-RGB-Tool
-Data Explorer
-en
-API Explorer
-Entangled
-HistoricalStats
-Longbow
-HistoricalStats
-Nightstalker
-Item: Dummy Hunter Subclass
-Nightstalker
-Item: Dummy item
-New Subclass: Nightstalker
-Item: Dummy Hunter Subclass
-Nightstalker's Respite
-Item: Hunter Emote
-Nightstalker
-Item: Hunter Subclass
-Nightstalker
-Item: Hunter Subclass
-Nightstalker
-Lore
-Nightstalker
-Lore
-Nightstalker defeats
-Metric
-The number of targets eliminated as a Nightstalker. Tracks from Season 1 onward.
-Objective
-Nightstalker Denial
-Record
-Nightstalker
-Record
-Nightstalker
-2453351420
-DestinyInventoryItemDefinition
-
-Draw from the Void. Light the way.
 
 {
   "displayProperties": {
