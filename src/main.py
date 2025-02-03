@@ -37,7 +37,7 @@ def get_manifest_url():
     return manifest_data['DestinyInventoryItemDefinition']
 
 def get_subclass_hashes():
-    """Scrape DestinyInventoryItemDefinition for subclasses and their Supers."""
+    """Scrape DestinyInventoryItemDefinition for subclasses and their hashes."""
     # Get the correct URL for DestinyInventoryItemDefinition
     inventory_item_url = "https://www.bungie.net" + get_manifest_url()
 
@@ -54,21 +54,10 @@ def get_subclass_hashes():
     for item in item_definitions.values():
         if "itemType" in item and item["itemType"] == 21:  # Subclass item type
             subclass_name = item["displayProperties"]["name"]
-            super_name = "Unknown Super"
+            # Record subclass hash and name
+            subclass_supers[item["hash"]] = subclass_name
 
-            # Check for Super abilities in the talent grid
-            if "talentGrid" in item:
-                super_name = item["talentGrid"].get("gridName", "Unknown Super")
-
-            # Map subclass hash to its name and associated Super
-            subclass_supers[item["hash"]] = {
-                "subclass_name": subclass_name,
-                "supers": super_name
-            }
-
-    print(f"🟢 Found {len(subclass_supers)} Subclasses: {json.dumps(subclass_supers)}")
-
-    # Cache the subclass and super data
+    # Cache the subclass hash-to-name data
     with open(CACHE_FILE, "w") as f:
         json.dump(subclass_supers, f)
 
@@ -136,7 +125,7 @@ class App(tk.Tk):
     
             response_text = response.content.decode('utf-8-sig')
             profile_data = json.loads(response_text)
-    
+
             # Extract character data
             characters = profile_data.get("Response", {}).get("characters", {}).get("data", {})
             if not characters:
@@ -180,7 +169,7 @@ class App(tk.Tk):
 
         subclass_data = subclass_supers.get(str(subclass_hash), None)
         if subclass_data:
-            return subclass_data["subclass_name"]
+            return subclass_data
         else:
             print(f"❌ Subclass Hash Not Found: {subclass_hash}")
             return "Unknown Subclass"
