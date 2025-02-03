@@ -156,6 +156,8 @@ class App(tk.Tk):
             if equipped_subclass:
                 # Fetch subclass name from the cached data
                 subclass_name = self.get_subclass_name_from_cache(equipped_subclass)
+            
+            print(f"🟢 Equipped Subclass: {subclass_name}")
 
             # Update UI safely on the main thread
             self.after(0, self.display_subclass, subclass_name)
