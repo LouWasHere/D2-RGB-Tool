@@ -74,6 +74,9 @@ def callback():
     try:
         bungie = OAuth2Session(CLIENT_ID, redirect_uri=REDIRECT_URI)
         authorization_response = request.url
+        
+        print(f"Authorization Response: {authorization_response}")
+        
         token = bungie.fetch_token(token_url, authorization_response=authorization_response)
         access_token = token['access_token']
         print(f"Access Token: {access_token}")
