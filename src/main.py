@@ -64,8 +64,9 @@ class LEDSETTING(ctypes.Structure):
 def set_motherboard_led(color_hex: int, brightness: int = 100):
     """Set motherboard LED to a given colour."""
     # Initialise API
-    if led_api.dllexp_InitAPI() != 0:
-        print("Failed to initialise RGB Fusion API")
+    init_result = led_api.dllexp_InitAPI()
+    if init_result != 0:
+        print(f"Failed to initialise RGB Fusion API. Error code: {init_result}")
         return
 
     # Get max LED zones
