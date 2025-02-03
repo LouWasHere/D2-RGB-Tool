@@ -54,54 +54,75 @@ class App(tk.Tk):
 
     def fetch_profile(self, access_token, membership_id, membership_type):
         def fetch_data():
+            print("🟢 Thread started for fetching profile data.")
+    
             headers = {
                 'X-API-Key': API_KEY,
                 'Authorization': f'Bearer {access_token}'
             }
-
+    
             # Step 1: Get character data
             url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200"
-            response = requests.get(url, headers=headers)
-            if response.status_code != 200:
+            print(f"🔵 Fetching character data from: {url}")
+    
+            try:
+                response = requests.get(url, headers=headers, timeout=10)  # Set a timeout in case it hangs
+            except requests.RequestException as e:
+                print(f"❌ Request failed: {e}")
                 return
-
+    
+            print(f"🔴 API Response Status: {response.status_code}")
+            print(f"🔴 API Response Content: {response.text}")
+    
+            if response.status_code != 200:
+                print(f"❌ API request failed! Status: {response.status_code}")
+                return
+    
             response_text = response.content.decode('utf-8-sig')
             profile_data = json.loads(response_text)
-
+    
             characters = profile_data.get("Response", {}).get("characters", {}).get("data", {})
             if not characters:
+                print("❌ No characters found!")
                 return
-
+    
             character_id = list(characters.keys())[0]  # Get the first available character ID
-
+            print(f"🟢 Active Character ID: {character_id}")
+    
             # Step 2: Get subclass details
             subclass_url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/Character/{character_id}/?components=205"
+            print(f"🔵 Fetching subclass data from: {subclass_url}")
+    
             response = requests.get(subclass_url, headers=headers)
             if response.status_code != 200:
+                print(f"❌ Failed to fetch subclass data! Status: {response.status_code}")
                 return
-
+    
             subclass_data = json.loads(response.content.decode('utf-8-sig'))
-
+    
             # Extract subclass information
             equipped_subclass = None
             subclass_name = "Unknown Subclass"
             equipped_super = "Unknown Super"
-
+    
             for item in subclass_data.get("Response", {}).get("equipment", {}).get("data", {}).get("items", []):
                 if item["bucketHash"] == 3284755031:  # Subclass bucket
                     equipped_subclass = item["itemHash"]
                     break
-
+    
             if equipped_subclass:
                 subclass_name, equipped_super = self.get_subclass_and_super(equipped_subclass)
-
+    
+            print(f"✅ Subclass: {subclass_name}, Super: {equipped_super}")
+    
             # 🔥 Update UI safely on the main thread
             self.after(0, lambda: self.display_subclass_and_super(subclass_name, equipped_super))
-
+    
             # 🔄 Schedule next update in 5 seconds
             self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
-
+    
         threading.Thread(target=fetch_data).start()
+
 
     def get_subclass_and_super(self, subclass_hash):
         # Mapping of subclass hashes to Subclass & Supers
