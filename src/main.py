@@ -101,42 +101,47 @@ class App(tk.Tk):
         self.user_name_label.config(text=f"Welcome, {username}")
         
 @app.route('/callback')
+@app.route('/callback')
 def callback():
     try:
         bungie = OAuth2Session(CLIENT_ID, redirect_uri=REDIRECT_URI)
         authorization_response = request.url
-        
+
         print(f"Authorization Response: {authorization_response}")
-        
+
         data = {
             'grant_type': 'authorization_code',
             'code': request.args['code'],
             'client_id': CLIENT_ID,
             'redirect_uri': REDIRECT_URI
         }        
-        
+
         response = requests.post(token_url, data=data)
-        
+
         if response.status_code != 200:
             raise ValueError(f"Failed to get token: {response.text}")
-        
+
         token = response.json()
-        print(f"Token Response: {token}")
-        
-        access_token = token.get('access_token',None)
+        print(f"Token Response: {json.dumps(token, indent=2)}")  # Print full response
+
+        access_token = token.get('access_token', None)
+        expires_in = token.get('expires_in', 'Unknown')
+
         if not access_token:
             raise ValueError("Access token not found in response")
-        
+
         print(f"Access Token: {access_token}")
-        
+        print(f"Access Token Expires In: {expires_in} seconds")
+
         app_instance = App()
         app_instance.fetch_profile(access_token)
-        
+
         return "Authentication successful! You can close this window now."
     except Exception as e:
         print(f"An error occurred: {e}")
         messagebox.showerror("Error", "An error occurred during authentication")
-        return "An error occurred during authentication"
+        return "An error occurred during authentication."
+
 
 if __name__ == '__main__':
     app_instance = App()
