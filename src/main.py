@@ -71,15 +71,21 @@ class App(tk.Tk):
         
 @app.route('/callback')
 def callback():
-    bungie = OAuth2Session(CLIENT_ID, redirect_uri=REDIRECT_URI)
-    authorization_response = request.url
-    token = bungie.fetch_token(token_url, authorization_response=authorization_response)
-    access_token = token['access_token']
-    
-    app_instance = App()
-    app_instance.fetch_profile(access_token)
-    
-    return "Authentication successful! You can close this window now."
+    try:
+        bungie = OAuth2Session(CLIENT_ID, redirect_uri=REDIRECT_URI)
+        authorization_response = request.url
+        token = bungie.fetch_token(token_url, authorization_response=authorization_response)
+        access_token = token['access_token']
+        print(f"Access Token: {access_token}")
+        
+        app_instance = App()
+        app_instance.fetch_profile(access_token)
+        
+        return "Authentication successful! You can close this window now."
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        messagebox.showerror("Error", "An error occurred during authentication")
+        return "An error occurred during authentication"
 
 if __name__ == '__main__':
     app_instance = App()
