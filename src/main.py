@@ -5,6 +5,7 @@ from flask import Flask, request, redirect
 import requests
 import webbrowser
 import os
+import json
 
 #Bungie API Client Details
 CLIENT_ID = '48933'
@@ -47,9 +48,11 @@ class App(tk.Tk):
             'Authorization': f'Bearer {access_token}'
         }
         
-        url = f"https://www.bungie.net/Platform/User/GetBungieAccountInfo/"
+        url = f"https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
         response = requests.get(url, headers=headers)
-        profile_data = response.json()
+        
+        response_text = response.content.decode('utf-8-sig')
+        profile_data = json.loads(response_text)
         
         #Extract the user's display name and membership ID
         if 'Response' in profile_data:
