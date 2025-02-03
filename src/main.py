@@ -42,6 +42,9 @@ def get_subclass_hashes():
     subclass_supers = {}
         
     for item in item_definitions.values():
+        if "hash" not in item or "displayProperties" not in item:
+            continue
+        
         if item.get("itemType") == 21:  # Subclass item type
             subclass_name = item["displayProperties"]["name"]
             super_abilities = item.get("talentGrid", {}).get("gridName", "Unknown Super")
