@@ -39,6 +39,10 @@ def get_subclass_hashes():
         raise ValueError("Failed to getch subclass data")
         
     item_definitions = response.json()
+    
+    sample_entry = next(iter(item_definitions.values()), None)
+    print(f"Sample Manifest Entry: {json.dumps(sample_entry, indent=2)}")
+    
     subclass_supers = {}
         
     for item in item_definitions.values():
@@ -50,7 +54,7 @@ def get_subclass_hashes():
             super_abilities = item.get("talentGrid", {}).get("gridName", "Unknown Super")
                 
             subclass_supers[item["hash"]] = {"subclass_name": subclass_name, "supers": super_abilities}
-        
+            
     return subclass_supers
 
 def get_cached_subclass_hashes():
