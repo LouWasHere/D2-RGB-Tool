@@ -20,7 +20,7 @@ token_url = 'https://www.bungie.net/Platform/App/OAuth/token/'
 app = Flask(__name__)
 
 def get_manifest_url():
-    """Fetches Bungie's manifest URL and lists the correct sections."""
+    """Fetches Bungie's manifest URL and returns the DestinyInventoryItemDefinition URL."""
     headers = {'X-API-Key': API_KEY}
     url = "https://www.bungie.net/Platform/Destiny2/Manifest/"
 
@@ -29,65 +29,31 @@ def get_manifest_url():
         raise ValueError("Failed to fetch manifest")
 
     manifest = response.json()
-
-    # Extract DestinyInventoryItemDefinition URL
     manifest_data = manifest['Response']['jsonWorldComponentContentPaths']['en']
-    print(f"🔍 DestinyInventoryItemDefinition URL: {manifest_data['DestinyInventoryItemDefinition']}")
-
+    
     return manifest_data['DestinyInventoryItemDefinition']
 
-def get_subclass_hashes():
-    """Scrape DestinyInventoryItemDefinition for subclasses and their Supers."""
+def get_subclass_name_from_manifest(subclass_hash):
+    """Fetch the subclass name from DestinyInventoryItemDefinition using the hash."""
     # Get the correct URL for DestinyInventoryItemDefinition
     inventory_item_url = "https://www.bungie.net" + get_manifest_url()
 
     # Fetch the actual data from DestinyInventoryItemDefinition
     response = requests.get(inventory_item_url)
     if response.status_code != 200:
-        raise ValueError("Failed to fetch subclass data")
+        raise ValueError("Failed to fetch subclass data from manifest")
 
     item_definitions = response.json()
 
-    subclass_supers = {}
-
-    # Loop through all items in the inventory item definition to find subclasses
+    # Search for the subclass hash in the manifest and get its name
+    subclass_name = "Unknown Subclass"
     for item in item_definitions.values():
-        # Check if the item is a subclass
-        if "itemType" in item and item["itemType"] == 21:  # Subclass item type
+        if item.get('hash') == subclass_hash:
             subclass_name = item["displayProperties"]["name"]
-            super_name = "Unknown Super"
+            break
 
-            # Check for Super abilities in the talent grid
-            if "talentGrid" in item:
-                super_name = item["talentGrid"].get("gridName", "Unknown Super")
+    return subclass_name
 
-            # Map subclass hash to its name and associated Super
-            subclass_supers[item["hash"]] = {
-                "subclass_name": subclass_name,
-                "supers": super_name
-            }
-
-    print(f"🟢 Found {len(subclass_supers)} Subclasses")  # Debugging count
-    return subclass_supers
-
-def get_cached_subclass_hashes():
-    """Load subclass hashes from a local cache file if available, otherwise fetch new data."""
-    cache_file = "subclass_hashes.json"
-
-    # Check if cache file exists
-    if os.path.exists(cache_file):
-        with open(cache_file, "r") as f:
-            return json.load(f)
-
-    # If no cache exists, fetch fresh data
-    print("🟢 No cache found. Fetching subclass hashes...")
-    subclass_data = get_subclass_hashes()
-
-    # Save the fetched subclass data to the cache file for future use
-    with open(cache_file, "w") as f:
-        json.dump(subclass_data, f)
-
-    return subclass_data
 
 # UI
 class App(tk.Tk):    
@@ -101,9 +67,6 @@ class App(tk.Tk):
 
         self.subclass_label = tk.Label(self, text="Subclass: Unknown", font=("Arial", 12))
         self.subclass_label.pack(pady=5)
-
-        self.super_label = tk.Label(self, text="Super: Unknown", font=("Arial", 12))
-        self.super_label.pack(pady=5)
 
         self.sign_in_button = tk.Button(self, text="Sign In with Bungie.net", command=self.sign_in)
         self.sign_in_button.pack(pady=20)
@@ -130,8 +93,8 @@ class App(tk.Tk):
                 'X-API-Key': API_KEY,
                 'Authorization': f'Bearer {access_token}'
             }
-        
-            # Step 1: Get character data (with definitions=true)
+    
+            # Step 1: Get character data
             url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200"
             response = requests.get(url, headers=headers)
 
@@ -160,7 +123,6 @@ class App(tk.Tk):
             # Extract subclass information
             equipped_subclass = None
             subclass_name = "Unknown Subclass"
-            equipped_super = "Unknown Super"
     
             for item in subclass_data.get("Response", {}).get("equipment", {}).get("data", {}).get("items", []):
                 if item["bucketHash"] == 3284755031:  # Subclass bucket
@@ -168,12 +130,11 @@ class App(tk.Tk):
                     break
     
             if equipped_subclass:
-                # Use definitions from the API response
-                subclass_name = item.get('displayProperties', {}).get('name', "Unknown Subclass")
-                equipped_super = item.get('superAbility', "Unknown Super")
-    
+                # Fetch subclass name from manifest
+                subclass_name = get_subclass_name_from_manifest(equipped_subclass)
+
             # Update UI safely on the main thread
-            self.after(0, self.display_subclass_and_super, subclass_name, equipped_super)
+            self.after(0, self.display_subclass, subclass_name)
     
             # Schedule next update in 5 seconds
             self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
@@ -183,9 +144,8 @@ class App(tk.Tk):
     def display_user_user(self, username):
         self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
 
-    def display_subclass_and_super(self, subclass_name, super_name):
+    def display_subclass(self, subclass_name):
         self.after(0, lambda: self.subclass_label.config(text=f"Subclass: {subclass_name}"))
-        self.after(0, lambda: self.super_label.config(text=f"Super: {super_name}"))
 
 @app.route('/callback')
 def callback():
