@@ -6,6 +6,7 @@ import requests
 import webbrowser
 import os
 import json
+import threading
 
 #Bungie API Client Details
 CLIENT_ID = '48933'
@@ -40,7 +41,9 @@ class App(tk.Tk):
         self.wait_for_callback()
         
     def wait_for_callback(self):
-        app.run(ssl_context='adhoc', port=8080)
+        flask_thread = threading.Thread(target=app.run, kwargs={'ssl_context': 'adhoc', 'port': 8080})
+        flask_thread.daemon = True
+        flask_thread.start()
         
     def fetch_profile(self, access_token):
         headers = {
