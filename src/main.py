@@ -19,6 +19,76 @@ token_url = 'https://www.bungie.net/Platform/App/OAuth/token/'
 
 app = Flask(__name__)
 
+def get_manifest_url():
+    """Fetches Bungie's manifest URL and lists the correct sections."""
+    headers = {'X-API-Key': API_KEY}
+    url = "https://www.bungie.net/Platform/Destiny2/Manifest/"
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise ValueError("Failed to fetch manifest")
+
+    manifest = response.json()
+
+    # Extract DestinyInventoryItemDefinition URL
+    manifest_data = manifest['Response']['jsonWorldComponentContentPaths']['en']
+    print(f"🔍 DestinyInventoryItemDefinition URL: {manifest_data['DestinyInventoryItemDefinition']}")
+
+    return manifest_data['DestinyInventoryItemDefinition']
+
+def get_subclass_hashes():
+    """Scrape DestinyInventoryItemDefinition for subclasses and their Supers."""
+    # Get the correct URL for DestinyInventoryItemDefinition
+    inventory_item_url = "https://www.bungie.net" + get_manifest_url()
+
+    # Fetch the actual data from DestinyInventoryItemDefinition
+    response = requests.get(inventory_item_url)
+    if response.status_code != 200:
+        raise ValueError("Failed to fetch subclass data")
+
+    item_definitions = response.json()
+
+    subclass_supers = {}
+
+    # Loop through all items in the inventory item definition to find subclasses
+    for item in item_definitions.values():
+        # Check if the item is a subclass
+        if "itemType" in item and item["itemType"] == 21:  # Subclass item type
+            subclass_name = item["displayProperties"]["name"]
+            super_name = "Unknown Super"
+
+            # Check for Super abilities in the talent grid
+            if "talentGrid" in item:
+                super_name = item["talentGrid"].get("gridName", "Unknown Super")
+
+            # Map subclass hash to its name and associated Super
+            subclass_supers[item["hash"]] = {
+                "subclass_name": subclass_name,
+                "supers": super_name
+            }
+
+    print(f"🟢 Found {len(subclass_supers)} Subclasses")  # Debugging count
+    return subclass_supers
+
+def get_cached_subclass_hashes():
+    """Load subclass hashes from a local cache file if available, otherwise fetch new data."""
+    cache_file = "subclass_hashes.json"
+
+    # Check if cache file exists
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            return json.load(f)
+
+    # If no cache exists, fetch fresh data
+    print("🟢 No cache found. Fetching subclass hashes...")
+    subclass_data = get_subclass_hashes()
+
+    # Save the fetched subclass data to the cache file for future use
+    with open(cache_file, "w") as f:
+        json.dump(subclass_data, f)
+
+    return subclass_data
+
 # UI
 class App(tk.Tk):    
     def __init__(self):
@@ -62,18 +132,14 @@ class App(tk.Tk):
             }
         
             # Step 1: Get character data (with definitions=true)
-            url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200&definitions=true"
-            print(f"🔵 Fetching character data from: {url}")
-        
+            url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200"
             response = requests.get(url, headers=headers)
+
             if response.status_code != 200:
                 return
     
             response_text = response.content.decode('utf-8-sig')
             profile_data = json.loads(response_text)
-    
-            # Debug: Print the full response to see the structure
-            print(f"🔴 Full Character Data Response: {json.dumps(profile_data, indent=2)}")
     
             # Extract character data
             characters = profile_data.get("Response", {}).get("characters", {}).get("data", {})
@@ -84,16 +150,12 @@ class App(tk.Tk):
             print(f"🟢 Active Character ID: {character_id}")
         
             # Step 2: Get subclass details (with definitions=true)
-            subclass_url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/Character/{character_id}/?components=205&definitions=true"
-            print(f"🔵 Fetching subclass data from: {subclass_url}")
-        
+            subclass_url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/Character/{character_id}/?components=205"
             response = requests.get(subclass_url, headers=headers)
             if response.status_code != 200:
                 return
     
-            # Debug: Print the full response for subclass data
             subclass_data = json.loads(response.content.decode('utf-8-sig'))
-            print(f"🔴 Full Subclass Data Response: {json.dumps(subclass_data, indent=2)}")
     
             # Extract subclass information
             equipped_subclass = None
@@ -107,8 +169,8 @@ class App(tk.Tk):
     
             if equipped_subclass:
                 # Use definitions from the API response
-                subclass_name = equipped_subclass.get('displayProperties', {}).get('name', "Unknown Subclass")
-                equipped_super = equipped_subclass.get('superAbility', "Unknown Super")
+                subclass_name = item.get('displayProperties', {}).get('name', "Unknown Subclass")
+                equipped_super = item.get('superAbility', "Unknown Super")
     
             # Update UI safely on the main thread
             self.after(0, self.display_subclass_and_super, subclass_name, equipped_super)
@@ -117,7 +179,6 @@ class App(tk.Tk):
             self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
     
         threading.Thread(target=fetch_data).start()
-
 
     def display_user_user(self, username):
         self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
