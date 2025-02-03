@@ -19,6 +19,9 @@ token_url = 'https://www.bungie.net/Platform/App/OAuth/token/'
 
 app = Flask(__name__)
 
+# Caching the manifest data to avoid redundant downloads
+CACHE_FILE = "subclass_cache.json"
+
 def get_manifest_url():
     """Fetches Bungie's manifest URL and returns the DestinyInventoryItemDefinition URL."""
     headers = {'X-API-Key': API_KEY}
@@ -33,8 +36,8 @@ def get_manifest_url():
     
     return manifest_data['DestinyInventoryItemDefinition']
 
-def get_subclass_name_from_manifest(subclass_hash):
-    """Fetch the subclass name from DestinyInventoryItemDefinition using the hash."""
+def get_subclass_hashes():
+    """Scrape DestinyInventoryItemDefinition for subclasses and their Supers."""
     # Get the correct URL for DestinyInventoryItemDefinition
     inventory_item_url = "https://www.bungie.net" + get_manifest_url()
 
@@ -45,14 +48,42 @@ def get_subclass_name_from_manifest(subclass_hash):
 
     item_definitions = response.json()
 
-    # Search for the subclass hash in the manifest and get its name
-    subclass_name = "Unknown Subclass"
-    for item in item_definitions.values():
-        if item.get('hash') == subclass_hash:
-            subclass_name = item["displayProperties"]["name"]
-            break
+    subclass_supers = {}
 
-    return subclass_name
+    # Loop through all items in the inventory item definition to find subclasses
+    for item in item_definitions.values():
+        if "itemType" in item and item["itemType"] == 21:  # Subclass item type
+            subclass_name = item["displayProperties"]["name"]
+            super_name = "Unknown Super"
+
+            # Check for Super abilities in the talent grid
+            if "talentGrid" in item:
+                super_name = item["talentGrid"].get("gridName", "Unknown Super")
+
+            # Map subclass hash to its name and associated Super
+            subclass_supers[item["hash"]] = {
+                "subclass_name": subclass_name,
+                "supers": super_name
+            }
+
+    # Cache the subclass and super data
+    with open(CACHE_FILE, "w") as f:
+        json.dump(subclass_supers, f)
+
+    print(f"🟢 Found {len(subclass_supers)} Subclasses")
+    return subclass_supers
+
+def get_cached_subclass_hashes():
+    """Load subclass hashes from a local cache file if available, otherwise fetch new data."""
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, "r") as f:
+            return json.load(f)
+
+    # If no cache exists, fetch fresh data
+    print("🟢 No cache found. Fetching subclass hashes...")
+    subclass_data = get_subclass_hashes()
+
+    return subclass_data
 
 
 # UI
@@ -130,8 +161,8 @@ class App(tk.Tk):
                     break
     
             if equipped_subclass:
-                # Fetch subclass name from manifest
-                subclass_name = get_subclass_name_from_manifest(equipped_subclass)
+                # Fetch subclass name from the cached data
+                subclass_name = self.get_subclass_name_from_cache(equipped_subclass)
 
             # Update UI safely on the main thread
             self.after(0, self.display_subclass, subclass_name)
@@ -140,6 +171,17 @@ class App(tk.Tk):
             self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
     
         threading.Thread(target=fetch_data).start()
+
+    def get_subclass_name_from_cache(self, subclass_hash):
+        """Fetch the subclass name from the cached subclass data."""
+        subclass_supers = get_cached_subclass_hashes()
+
+        subclass_data = subclass_supers.get(str(subclass_hash), None)
+        if subclass_data:
+            return subclass_data["subclass_name"]
+        else:
+            print(f"❌ Subclass Hash Not Found: {subclass_hash}")
+            return "Unknown Subclass"
 
     def display_user_user(self, username):
         self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
