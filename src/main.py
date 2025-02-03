@@ -50,43 +50,44 @@ class App(tk.Tk):
             'X-API-Key': API_KEY,
             'Authorization': f'Bearer {access_token}'
         }
-
+    
         url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
-        
-        print(f"Using access token, {access_token}, to fetch profile data...")
-        
+    
+        # Debug: Print access token before making the request
+        print(f"Using Access Token: {access_token}")
+    
         response = requests.get(url, headers=headers)
-
+    
         # Print response details for debugging
         print(f"Response Status Code: {response.status_code}")
-        print(f"Response Content: {response.text}")  # Print raw JSON response
-
+        print(f"Response Content: {response.text}")
+    
+        if response.status_code == 401:
+            raise ValueError("Unauthorized: Access token is invalid or expired.")
+    
         if response.status_code != 200:
             raise ValueError(f"API request failed! Status Code: {response.status_code}, Response: {response.text}")
-
-        if not response.content.strip():  # Check if the response is empty
+    
+        if not response.content.strip():
             raise ValueError("Bungie API returned an empty response!")
-
-        # Fix: Decode using UTF-8-SIG and handle JSON parsing errors
+    
         try:
-            response_text = response.content.decode('utf-8-sig')  # Decodes and removes BOM
-            profile_data = json.loads(response_text)  # Parse the cleaned JSON
+            response_text = response.content.decode('utf-8-sig')
+            profile_data = json.loads(response_text)
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse JSON response: {e}, Raw Response: {response_text}")
-
-        # Debug: Print parsed JSON response
+    
         print(f"Parsed Profile Data: {json.dumps(profile_data, indent=2)}")
-
-        # Extract membership details
+    
         if 'Response' in profile_data and 'destinyMemberships' in profile_data['Response']:
             destiny_membership = profile_data['Response']['destinyMemberships']
-            if destiny_membership:  # Ensure the list is not empty
+            if destiny_membership:
                 membership_id = destiny_membership[0]['membershipId']
                 membership_type = destiny_membership[0]['membershipType']
                 username = destiny_membership[0].get('displayName', 'Unknown')
-
+    
                 self.display_user_user(username)
-
+    
                 print(f"Membership ID: {membership_id}")
                 print(f"Membership Type: {membership_type}")
                 print(f"Username: {username}")
