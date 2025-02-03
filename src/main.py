@@ -20,7 +20,7 @@ token_url = 'https://www.bungie.net/Platform/App/OAuth/token/'
 app = Flask(__name__)
 
 def get_manifest_url():
-    """Fetches Bungie's manifest URL and lists relevant subclass data."""
+    """Fetches Bungie's manifest URL and saves the content to a local file for inspection."""
     headers = {'X-API-Key': API_KEY}
     url = "https://www.bungie.net/Platform/Destiny2/Manifest/"
 
@@ -29,12 +29,17 @@ def get_manifest_url():
         raise ValueError("Failed to fetch manifest")
 
     manifest = response.json()
-    manifest_data = manifest['Response']['jsonWorldComponentContentPaths']['en']
 
-    # Print DestinyTalentGridDefinition URL for debugging
-    print(f"🔍 DestinyTalentGridDefinition URL: {manifest_data['DestinyTalentGridDefinition']}")
+    # Save the full manifest data to a file for inspection
+    with open("manifest_data.json", "w") as f:
+        json.dump(manifest, f, indent=2)
 
-    return manifest_data['DestinyTalentGridDefinition']
+    print("🟢 Manifest has been saved to 'manifest_data.json' for inspection.")
+
+    # Access the relevant part for jsonWorldComponentContentPaths
+    manifest_data = manifest.get('Response', {}).get('jsonWorldComponentContentPaths', {}).get('en', {})
+
+    return manifest_data
 
     
 def get_subclass_hashes():
