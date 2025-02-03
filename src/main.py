@@ -28,9 +28,12 @@ def get_manifest_url():
         raise ValueError("Failed to fetch manifest URL")
         
     manifest = response.json()
-    manifest_url = "https://www.bungie.net" + manifest['Response']['jsonWorldComponentContentPaths']['en']['DestinyInventoryItemLiteDefinition']
+    
+    print(f"Manfiest Keys: {json.dumps(manifest, indent=2)}")
+    
+    manifest_data = manifest['Response']['jsonWorldComponentContentPaths']['en']
         
-    return manifest_url
+    return manifest_data
     
 def get_subclass_hashes():
     manifest_url = get_manifest_url()
@@ -39,9 +42,6 @@ def get_subclass_hashes():
         raise ValueError("Failed to getch subclass data")
         
     item_definitions = response.json()
-    
-    sample_entry = next(iter(item_definitions.values()), None)
-    print(f"Sample Manifest Entry: {json.dumps(sample_entry, indent=2)}")
     
     subclass_supers = {}
         
