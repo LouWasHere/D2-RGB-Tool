@@ -23,6 +23,7 @@ app = Flask(__name__)
 CACHE_FILE = "subclass_cache.json"
 
 def get_manifest_url():
+    print("🟢 Fetching Bungie's manifest URL...")
     """Fetches Bungie's manifest URL and returns the DestinyInventoryItemDefinition URL."""
     headers = {'X-API-Key': API_KEY}
     url = "https://www.bungie.net/Platform/Destiny2/Manifest/"
@@ -37,6 +38,7 @@ def get_manifest_url():
     return manifest_data['DestinyInventoryItemDefinition']
 
 def get_subclass_hashes():
+    print("🟢 Fetching Subclass Hashes...")
     """Scrape DestinyInventoryItemDefinition for subclasses and their hashes."""
     # Get the correct URL for DestinyInventoryItemDefinition
     inventory_item_url = "https://www.bungie.net" + get_manifest_url()
@@ -52,7 +54,7 @@ def get_subclass_hashes():
 
     # Loop through all items in the inventory item definition to find subclasses
     for item in item_definitions.values():
-        if "itemType" in item and item["itemType"] == 21:  # Subclass item type
+        if "itemType" in item and item["itemType"] == 16:  # Subclass item type
             subclass_name = item["displayProperties"]["name"]
             # Record subclass hash and name
             subclass_supers[item["hash"]] = subclass_name
