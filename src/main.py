@@ -77,8 +77,25 @@ def callback():
         
         print(f"Authorization Response: {authorization_response}")
         
-        token = bungie.fetch_token(token_url, authorization_response=authorization_response)
-        access_token = token['access_token']
+        data = {
+            'grant_type': 'authorization_code',
+            'code': request.args['code'],
+            'client_id': CLIENT_ID,
+            'redirect_uri': REDIRECT_URI
+        }        
+        
+        response = requests.post(token_url, data=data)
+        
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get token: {response.text}")
+        
+        token = response.json()
+        print(f"Token Response: {token}")
+        
+        access_token = token.get('access_token',None)
+        if not access_token:
+            raise ValueError("Access token not found in response")
+        
         print(f"Access Token: {access_token}")
         
         app_instance = App()
