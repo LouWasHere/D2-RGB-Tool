@@ -128,9 +128,6 @@ class App(tk.Tk):
             response_text = response.content.decode('utf-8-sig')
             profile_data = json.loads(response_text)
     
-            # Print full response to check the structure
-            print(f"🔴 Full Membership Data: {json.dumps(profile_data, indent=2)}")
-    
             # Extract the Bungie display name
             try:
                 display_name = profile_data["Response"]["destinyMemberships"][0]["displayName"]
