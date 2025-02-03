@@ -66,6 +66,8 @@ def get_subclass_hashes():
                 "supers": super_name
             }
 
+    print(f"🟢 Found {len(subclass_supers)} Subclasses: {json.dumps(subclass_supers)}")
+
     # Cache the subclass and super data
     with open(CACHE_FILE, "w") as f:
         json.dump(subclass_supers, f)
