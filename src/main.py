@@ -19,6 +19,51 @@ token_url = 'https://www.bungie.net/Platform/App/OAuth/token/'
 
 app = Flask(__name__)
 
+def get_manifest_url():
+    headers = {'X-API-Key': API_KEY}
+    url = "https://www.bungie.net/Platform/Destiny2/Manifest/"
+        
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise ValueError("Failed to fetch manifest URL")
+        
+    manifest = response.json()
+    manifest_url = "https://www.bungie.net" + manifest['Response']['jsonWorldComponentContentPaths']['en']['DestinyInventoryItemLiteDefinition']
+        
+    return manifest_url
+    
+def get_subclass_hashes():
+    manifest_url = get_manifest_url()
+    response = requests.get(manifest_url)
+    if response.status_code != 200:
+        raise ValueError("Failed to getch subclass data")
+        
+    item_definitions = response.json()
+    subclass_supers = {}
+        
+    for item in item_definitions.values():
+        if item.get("itemType") == 21:  # Subclass item type
+            subclass_name = item["displayProperties"]["name"]
+            super_abilities = item.get("talentGrid", {}).get("gridName", "Unknown Super")
+                
+            subclass_supers[item["hash"]] = {"subclass_name": subclass_name, "supers": super_abilities}
+        
+    return subclass_supers
+
+def get_cached_subclass_hashes():
+    cache_file = "subclass_hashes.json"
+    
+    if not os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            return json.load(f)
+        
+    subclass_data = get_subclass_hashes()
+    
+    with open(cache_file, "w") as f:
+        json.dump(subclass_data, f)
+
+    return subclass_data
+
 # UI
 class App(tk.Tk):    
     def __init__(self):
@@ -123,25 +168,19 @@ class App(tk.Tk):
     
         threading.Thread(target=fetch_data).start()
 
-
     def get_subclass_and_super(self, subclass_hash):
-        # Mapping of subclass hashes to Subclass & Supers
-        subclass_map = {
-            3628991659: ("Gunslinger", "Golden Gun"),
-            1334959255: ("Gunslinger", "Blade Barrage"),
-            3481861797: ("Arcstrider", "Arc Staff"),
-            2932390016: ("Voidwalker", "Nova Bomb"),
-            3242928811: ("Stormcaller", "Stormtrance"),
-            1751782730: ("Stormcaller", "Chaos Reach"),
-            3544605070: ("Striker", "Fist of Havoc"),
-            2009185145: ("Sunbreaker", "Burning Maul"),
-            2758933481: ("Striker", "Thundercrash"),
-            3941205951: ("Dawnblade", "Well of Radiance"),
-            2550323932: ("Sentinel", "Sentinel Shield"),
-            4264096383: ("Behemoth", "Glacial Quake"),
-            1220324104: ("Shadebinder", "Winter's Wrath"),
-        }
-        return subclass_map.get(subclass_hash, ("Unknown Subclass", "Unknown Super"))
+        subclass_supers = get_subclass_hashes()
+        subclass_data = subclass_supers.get(subclass_hash, None)
+        if not subclass_data:
+            return "Unknown Subclass", "Unknown Super"
+            
+        subclass_name = subclass_data["subclass_name"]
+        super_name = subclass_data["supers"]
+            
+        if "Prismatic" in subclass_name or "Light and Dark" in subclass_name:
+            subclass_name = " (Prismatic)"
+            
+        return subclass_name, super_name
 
     def display_user_user(self, username):
         self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
