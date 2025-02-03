@@ -46,31 +46,52 @@ class App(tk.Tk):
         flask_thread.start()
         
     def fetch_profile(self, access_token):
-        headers = {
-            'X-API-Key': API_KEY,
-            'Authorization': f'Bearer {access_token}'
-        }
-        
-        url = f"https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
-        response = requests.get(url, headers=headers)
-        
-        response_text = response.content.decode('utf-8-sig')
-        profile_data = json.loads(response_text)
-        
-        #Extract the user's display name and membership ID
-        if 'Response' in profile_data:
-            bungie_account = profile_data['Response'][0]
-            membership_id = bungie_account['membershipId']
-            membership_type = bungie_account['membershipType']
-            username = bungie_account['displayName']
-            
+    headers = {
+        'X-API-Key': API_KEY,
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
+    response = requests.get(url, headers=headers)
+
+    # Print response details for debugging
+    print(f"Response Status Code: {response.status_code}")
+    print(f"Response Content: {response.text}")  # Print raw JSON response
+
+    if response.status_code != 200:
+        raise ValueError(f"API request failed! Status Code: {response.status_code}, Response: {response.text}")
+
+    if not response.content.strip():  # Check if the response is empty
+        raise ValueError("Bungie API returned an empty response!")
+
+    # Fix: Decode using UTF-8-SIG and handle JSON parsing errors
+    try:
+        response_text = response.content.decode('utf-8-sig')  # Decodes and removes BOM
+        profile_data = json.loads(response_text)  # Parse the cleaned JSON
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON response: {e}, Raw Response: {response_text}")
+
+    # Debug: Print parsed JSON response
+    print(f"Parsed Profile Data: {json.dumps(profile_data, indent=2)}")
+
+    # Extract membership details
+    if 'Response' in profile_data and 'destinyMemberships' in profile_data['Response']:
+        destiny_membership = profile_data['Response']['destinyMemberships']
+        if destiny_membership:  # Ensure the list is not empty
+            membership_id = destiny_membership[0]['membershipId']
+            membership_type = destiny_membership[0]['membershipType']
+            username = destiny_membership[0].get('displayName', 'Unknown')
+
             self.display_user_user(username)
-            
+
             print(f"Membership ID: {membership_id}")
             print(f"Membership Type: {membership_type}")
             print(f"Username: {username}")
         else:
-            messagebox.showerror("Error", "Failed to fetch profile data")
+            raise ValueError("No Destiny memberships found in response!")
+    else:
+        raise ValueError("Invalid API response format: Missing expected keys.")
+
         
     def display_user_user(self, username):
         self.user_name_label.config(text=f"Welcome, {username}")
