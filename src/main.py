@@ -80,14 +80,19 @@ def get_subclass_hashes():
 
 
 def get_cached_subclass_hashes():
+    """Load subclass hashes from a local cache file if available, otherwise fetch new data."""
     cache_file = "subclass_hashes.json"
-    
-    if not os.path.exists(cache_file):
+
+    # Check if cache file exists
+    if os.path.exists(cache_file):
         with open(cache_file, "r") as f:
             return json.load(f)
-        
+
+    # If no cache exists, fetch fresh data
+    print("🟢 No cache found. Fetching subclass hashes...")
     subclass_data = get_subclass_hashes()
-    
+
+    # Save the fetched subclass data to the cache file for future use
     with open(cache_file, "w") as f:
         json.dump(subclass_data, f)
 
