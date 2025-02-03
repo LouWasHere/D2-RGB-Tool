@@ -24,13 +24,16 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Destiny 2 Subclass RGB Sync")
-        self.geometry("400x200")
+        self.geometry("400x250")
 
         self.user_name_label = tk.Label(self, text="Please Sign In", font=("Arial", 14))
         self.user_name_label.pack(pady=10)
 
+        self.subclass_label = tk.Label(self, text="Subclass: Unknown", font=("Arial", 12))
+        self.subclass_label.pack(pady=5)
+
         self.super_label = tk.Label(self, text="Super: Unknown", font=("Arial", 12))
-        self.super_label.pack(pady=10)
+        self.super_label.pack(pady=5)
 
         self.sign_in_button = tk.Button(self, text="Sign In with Bungie.net", command=self.sign_in)
         self.sign_in_button.pack(pady=20)
@@ -50,77 +53,80 @@ class App(tk.Tk):
         flask_thread.start()
 
     def fetch_profile(self, access_token, membership_id, membership_type):
-        headers = {
-            'X-API-Key': API_KEY,
-            'Authorization': f'Bearer {access_token}'
+        def fetch_data():
+            headers = {
+                'X-API-Key': API_KEY,
+                'Authorization': f'Bearer {access_token}'
+            }
+
+            # Step 1: Get character data
+            url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200"
+            response = requests.get(url, headers=headers)
+            if response.status_code != 200:
+                return
+
+            response_text = response.content.decode('utf-8-sig')
+            profile_data = json.loads(response_text)
+
+            characters = profile_data.get("Response", {}).get("characters", {}).get("data", {})
+            if not characters:
+                return
+
+            character_id = list(characters.keys())[0]  # Get the first available character ID
+
+            # Step 2: Get subclass details
+            subclass_url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/Character/{character_id}/?components=205"
+            response = requests.get(subclass_url, headers=headers)
+            if response.status_code != 200:
+                return
+
+            subclass_data = json.loads(response.content.decode('utf-8-sig'))
+
+            # Extract subclass information
+            equipped_subclass = None
+            subclass_name = "Unknown Subclass"
+            equipped_super = "Unknown Super"
+
+            for item in subclass_data.get("Response", {}).get("equipment", {}).get("data", {}).get("items", []):
+                if item["bucketHash"] == 3284755031:  # Subclass bucket
+                    equipped_subclass = item["itemHash"]
+                    break
+
+            if equipped_subclass:
+                subclass_name, equipped_super = self.get_subclass_and_super(equipped_subclass)
+
+            # 🔥 Update UI safely on the main thread
+            self.after(0, lambda: self.display_subclass_and_super(subclass_name, equipped_super))
+
+            # 🔄 Schedule next update in 5 seconds
+            self.after(5000, lambda: threading.Thread(target=fetch_data).start())
+
+        threading.Thread(target=fetch_data).start()
+
+    def get_subclass_and_super(self, subclass_hash):
+        # Mapping of subclass hashes to Subclass & Supers
+        subclass_map = {
+            3628991659: ("Gunslinger", "Golden Gun"),
+            1334959255: ("Gunslinger", "Blade Barrage"),
+            3481861797: ("Arcstrider", "Arc Staff"),
+            2932390016: ("Voidwalker", "Nova Bomb"),
+            3242928811: ("Stormcaller", "Stormtrance"),
+            1751782730: ("Stormcaller", "Chaos Reach"),
+            3544605070: ("Striker", "Fist of Havoc"),
+            2009185145: ("Sunbreaker", "Burning Maul"),
+            2758933481: ("Striker", "Thundercrash"),
+            3941205951: ("Dawnblade", "Well of Radiance"),
+            2550323932: ("Sentinel", "Sentinel Shield"),
+            4264096383: ("Behemoth", "Glacial Quake"),
+            1220324104: ("Shadebinder", "Winter's Wrath"),
         }
-
-        # Step 1: Get character data
-        url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200"
-
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            return
-
-        response_text = response.content.decode('utf-8-sig')
-        profile_data = json.loads(response_text)
-
-        characters = profile_data.get("Response", {}).get("characters", {}).get("data", {})
-        if not characters:
-            return
-
-        character_id = list(characters.keys())[0]  # Get the first available character ID
-
-        # Step 2: Get subclass details
-        subclass_url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/Character/{character_id}/?components=205"
-
-        response = requests.get(subclass_url, headers=headers)
-        if response.status_code != 200:
-            return
-
-        subclass_data = json.loads(response.content.decode('utf-8-sig'))
-
-        # Extract subclass information
-        equipped_subclass = None
-        equipped_super = "Unknown Super"
-
-        for item in subclass_data.get("Response", {}).get("equipment", {}).get("data", {}).get("items", []):
-            if item["bucketHash"] == 3284755031:  # Subclass bucket
-                equipped_subclass = item["itemHash"]
-                break
-
-        if equipped_subclass:
-            equipped_super = self.get_super_name(equipped_subclass)
-
-        # 🔥 Update UI safely on the main thread
-        self.after(0, self.display_super, equipped_super)
-
-        # 🔄 Refresh every 5 seconds on the main thread
-        self.after(5000, lambda: threading.Thread(target=self.fetch_profile, args=(access_token, membership_id, membership_type)).start())
-
-    def get_super_name(self, subclass_hash):
-        # Mapping of subclass hashes to Supers
-        subclass_supers = {
-            3628991659: "Golden Gun",        # Gunslinger
-            1334959255: "Blade Barrage",     # Way of a Thousand Cuts
-            3481861797: "Arc Staff",         # Arcstrider
-            2932390016: "Nova Bomb",         # Voidwalker
-            3242928811: "Stormtrance",       # Stormcaller
-            1751782730: "Chaos Reach",       # Chaos Reach
-            3544605070: "Fist of Havoc",     # Striker
-            2009185145: "Burning Maul",      # Sunbreaker
-            2758933481: "Thundercrash",      # Code of the Missile
-            3941205951: "Well of Radiance",  # Dawnblade
-            2550323932: "Sentinel Shield",   # Sentinel
-            4264096383: "Glacial Quake",     # Behemoth
-            1220324104: "Winter's Wrath",    # Shadebinder
-        }
-        return subclass_supers.get(subclass_hash, "Unknown Super")
+        return subclass_map.get(subclass_hash, ("Unknown Subclass", "Unknown Super"))
 
     def display_user_user(self, username):
         self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
 
-    def display_super(self, super_name):
+    def display_subclass_and_super(self, subclass_name, super_name):
+        self.after(0, lambda: self.subclass_label.config(text=f"Subclass: {subclass_name}"))
         self.after(0, lambda: self.super_label.config(text=f"Super: {super_name}"))
 
 @app.route('/callback')
@@ -150,7 +156,7 @@ def callback():
         if not access_token:
             raise ValueError("Access token not found in response")
 
-        threading.Thread(target=app_instance.fetch_profile, args=(access_token, membership_id, 3)).start()  # Assuming Steam (3) for now
+        threading.Thread(target=app_instance.fetch_profile, args=(access_token, membership_id, 3)).start()  # Assuming Steam (3)
 
         return "Authentication successful! You can close this window now."
     except Exception as e:
