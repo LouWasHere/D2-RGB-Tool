@@ -115,61 +115,92 @@ class App(tk.Tk):
                 'X-API-Key': API_KEY,
                 'Authorization': f'Bearer {access_token}'
             }
-        
-            # Step 1: Get character data (with definitions=true)
-            url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200"
-            response = requests.get(url, headers=headers)
     
+            # Step 1: Get the Bungie membership information (Display Name)
+            membership_url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
+            response = requests.get(membership_url, headers=headers)
+    
+            # Check for errors in the response
             if response.status_code != 200:
+                print(f"❌ Error fetching membership data: {response.status_code}")
                 return
-        
+    
             response_text = response.content.decode('utf-8-sig')
             profile_data = json.loads(response_text)
-        
+    
+            # Print full response to check the structure
+            print(f"🔴 Full Membership Data: {json.dumps(profile_data, indent=2)}")
+    
+            # Extract the Bungie display name
+            try:
+                display_name = profile_data["Response"]["destinyMemberships"][0]["displayName"]
+                print(f"🟢 User Display Name: {display_name}")
+            except (KeyError, IndexError) as e:
+                print(f"❌ Error extracting display name: {e}")
+                display_name = "Unknown User"
+    
+            # Update UI with the user's display name
+            self.after(0, self.display_user_user, display_name)
+    
+            # Step 2: Get subclass details from character profile
+            subclass_url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/?components=200"
+            response = requests.get(subclass_url, headers=headers)
+    
+            if response.status_code != 200:
+                print(f"❌ Error fetching subclass data: {response.status_code}")
+                return
+    
+            response_text = response.content.decode('utf-8-sig')
+            profile_data = json.loads(response_text)
+    
             # Extract character data
             characters = profile_data.get("Response", {}).get("characters", {}).get("data", {})
             if not characters:
+                print("❌ No characters found!")
                 return
-        
+    
             character_id = list(characters.keys())[0]  # Get the first available character ID
-            
-            # Step 2: Get subclass details (with definitions=true)
+            print(f"🟢 Active Character ID: {character_id}")
+    
+            # Step 3: Get subclass details (with definitions=true)
             subclass_url = f"https://www.bungie.net/Platform/Destiny2/{membership_type}/Profile/{membership_id}/Character/{character_id}/?components=205"
             response = requests.get(subclass_url, headers=headers)
             if response.status_code != 200:
+                print(f"❌ Error fetching subclass data: {response.status_code}")
                 return
-        
+    
             subclass_data = json.loads(response.content.decode('utf-8-sig'))
-        
+    
             # Extract subclass information
             equipped_subclass = None
             subclass_name = "Unknown Subclass"
-        
+    
             for item in subclass_data.get("Response", {}).get("equipment", {}).get("data", {}).get("items", []):
                 if item["bucketHash"] == 3284755031:  # Subclass bucket
                     equipped_subclass = item["itemHash"]
                     break
-        
+    
             if equipped_subclass:
                 # Fetch subclass name from the cached data
                 subclass_name = self.get_subclass_name_from_cache(equipped_subclass)
     
             # Update UI safely on the main thread
             self.after(0, self.display_subclass, subclass_name)
-            
-            # Update UI to show the signed-in user's Bungie display name
-            display_name = profile_data["Response"]["user"]["displayName"]
-            self.after(0, self.display_user_user, display_name)
-        
+    
             # Schedule next update in 5 seconds
             self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
-        
+    
         threading.Thread(target=fetch_data).start()
     
     def display_user_user(self, display_name):
         """Update the UI to show the signed-in user's Bungie display name."""
         self.user_name_label.config(text=f"Welcome, {display_name}")
         self.sign_in_button.pack_forget()  # Remove the Sign In button once user is logged in
+    
+    def display_subclass(self, subclass_name):
+        """Update the UI to show the current subclass."""
+        self.after(0, lambda: self.subclass_label.config(text=f"Subclass: {subclass_name}"))
+
 
     def get_subclass_name_from_cache(self, subclass_hash):
         """Fetch the subclass name from the cached subclass data."""
@@ -181,12 +212,6 @@ class App(tk.Tk):
         else:
             print(f"❌ Subclass Hash Not Found: {subclass_hash}")
             return "Unknown Subclass"
-
-    def display_user_user(self, username):
-        self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
-
-    def display_subclass(self, subclass_name):
-        self.after(0, lambda: self.subclass_label.config(text=f"Subclass: {subclass_name}"))
 
 @app.route('/callback')
 def callback():
