@@ -99,7 +99,7 @@ class App(tk.Tk):
             self.after(0, lambda: self.display_subclass_and_super(subclass_name, equipped_super))
 
             # 🔄 Schedule next update in 5 seconds
-            self.after(5000, lambda: threading.Thread(target=fetch_data).start())
+            self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
 
         threading.Thread(target=fetch_data).start()
 
@@ -156,7 +156,8 @@ def callback():
         if not access_token:
             raise ValueError("Access token not found in response")
 
-        threading.Thread(target=app_instance.fetch_profile, args=(access_token, membership_id, 3)).start()  # Assuming Steam (3)
+        # 🔥 Start the profile fetch **immediately** after login
+        app_instance.after(0, lambda: app_instance.fetch_profile(access_token, membership_id, 3))
 
         return "Authentication successful! You can close this window now."
     except Exception as e:
