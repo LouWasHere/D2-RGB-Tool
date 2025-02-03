@@ -20,42 +20,64 @@ token_url = 'https://www.bungie.net/Platform/App/OAuth/token/'
 app = Flask(__name__)
 
 def get_manifest_url():
+    """Fetches Bungie's manifest URL and lists relevant subclass data."""
     headers = {'X-API-Key': API_KEY}
     url = "https://www.bungie.net/Platform/Destiny2/Manifest/"
-        
+
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
-        raise ValueError("Failed to fetch manifest URL")
-        
+        raise ValueError("Failed to fetch manifest")
+
     manifest = response.json()
-    
-    print(f"Manfiest Keys: {json.dumps(manifest, indent=2)}")
-    
     manifest_data = manifest['Response']['jsonWorldComponentContentPaths']['en']
-        
-    return manifest_data
+
+    # Print DestinyTalentGridDefinition URL for debugging
+    print(f"🔍 DestinyTalentGridDefinition URL: {manifest_data['DestinyTalentGridDefinition']}")
+
+    return manifest_data['DestinyTalentGridDefinition']
+
     
 def get_subclass_hashes():
-    manifest_url = get_manifest_url()
-    response = requests.get(manifest_url)
+    """Fetch subclass hashes and associated Supers dynamically from Bungie's manifest."""
+    # Get the correct URL for DestinyTalentGridDefinition
+    talent_grid_url = "https://www.bungie.net" + get_manifest_url()
+
+    # Fetch the actual data from the manifest
+    response = requests.get(talent_grid_url)
     if response.status_code != 200:
-        raise ValueError("Failed to getch subclass data")
-        
-    item_definitions = response.json()
-    
+        raise ValueError("Failed to fetch subclass data")
+
+    talent_grids = response.json()
+
     subclass_supers = {}
-        
-    for item in item_definitions.values():
-        if "hash" not in item or "displayProperties" not in item:
-            continue
-        
-        if item.get("itemType") == 21:  # Subclass item type
-            subclass_name = item["displayProperties"]["name"]
-            super_abilities = item.get("talentGrid", {}).get("gridName", "Unknown Super")
-                
-            subclass_supers[item["hash"]] = {"subclass_name": subclass_name, "supers": super_abilities}
-            
+
+    # Loop through all talent grids to extract subclass names and supers
+    for grid_id, talent in talent_grids.items():
+        if "gridName" not in talent or "nodes" not in talent:
+            continue  # Skip if talent grid doesn't have the expected structure
+
+        subclass_name = talent["gridName"]
+        super_name = "Unknown Super"
+
+        # Look for supers in each talent grid node
+        for node in talent["nodes"]:
+            if "steps" in node:
+                for step in node["steps"]:
+                    if "displayProperties" in step:
+                        ability_name = step["displayProperties"].get("name", "")
+                        if "Super" in ability_name:  # Filter out Supers
+                            super_name = ability_name
+                            break
+
+        # Save subclass and super in a dictionary
+        subclass_supers[grid_id] = {
+            "subclass_name": subclass_name,
+            "supers": super_name
+        }
+
+    print(f"🟢 Found {len(subclass_supers)} Subclasses")  # Debugging count
     return subclass_supers
+
 
 def get_cached_subclass_hashes():
     cache_file = "subclass_hashes.json"
@@ -176,18 +198,22 @@ class App(tk.Tk):
         threading.Thread(target=fetch_data).start()
 
     def get_subclass_and_super(self, subclass_hash):
-        subclass_supers = get_subclass_hashes()
-        subclass_data = subclass_supers.get(subclass_hash, None)
+        subclass_supers = get_cached_subclass_hashes()
+    
+        subclass_data = subclass_supers.get(str(subclass_hash), None)  # Ensure hash is a string
         if not subclass_data:
-            return "Unknown Subclass", "Unknown Super"
-            
+            print(f"❌ Subclass Hash Not Found: {subclass_hash}")  # Debug missing hash
+            return ("Unknown Subclass", "Unknown Super")
+    
         subclass_name = subclass_data["subclass_name"]
         super_name = subclass_data["supers"]
-            
+    
+        # Detect Prismatic Subclass (Final Shape)
         if "Prismatic" in subclass_name or "Light and Dark" in subclass_name:
-            subclass_name = " (Prismatic)"
-            
+            subclass_name += " (Prismatic)"
+    
         return subclass_name, super_name
+
 
     def display_user_user(self, username):
         self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
