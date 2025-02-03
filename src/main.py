@@ -100,10 +100,7 @@ class App(tk.Tk):
 
         
     def display_user_user(self, username):
-        self.after(0,self._update_username_label, username)
-    
-    def _update_username_label(self, username):
-        self.user_name_label.config(text=f"Welcome, {username}!")
+        self.after(0, lambda: self.user_name_label.config(text=f"Welcome, {username}"))
         
 @app.route('/callback')
 def callback():
@@ -138,8 +135,7 @@ def callback():
         print(f"Access Token: {access_token}")
         print(f"Access Token Expires In: {expires_in} seconds")
 
-        app_instance = App()
-        app_instance.fetch_profile(access_token, membership_id)
+        threading.Thread(target=app_instance.fetch_profile, args=(access_token, membership_id)).start()
 
         return "Authentication successful! You can close this window now."
     except Exception as e:
