@@ -78,7 +78,6 @@ def get_cached_subclass_hashes():
 
     return subclass_data
 
-
 # UI
 class App(tk.Tk):    
     def __init__(self):
