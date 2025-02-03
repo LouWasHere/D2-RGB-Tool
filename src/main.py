@@ -80,3 +80,7 @@ def callback():
     app_instance.fetch_profile(access_token)
     
     return "Authentication successful! You can close this window now."
+
+if __name__ == '__main__':
+    app_instance = App()
+    app_instance.mainloop()
