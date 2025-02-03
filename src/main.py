@@ -45,13 +45,13 @@ class App(tk.Tk):
         flask_thread.daemon = True
         flask_thread.start()
         
-    def fetch_profile(self, access_token):
+    def fetch_profile(self, access_token, membership_id):
         headers = {
             'X-API-Key': API_KEY,
             'Authorization': f'Bearer {access_token}'
         }
     
-        url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
+        url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/{membership_id}/"
     
         # Debug: Print access token before making the request
         print(f"Using Access Token: {access_token}")
@@ -125,6 +125,7 @@ def callback():
         print(f"Token Response: {json.dumps(token, indent=2)}")  # Print full response
 
         access_token = token.get('access_token', None)
+        membership_id = token.get('membership_id', None)
         expires_in = token.get('expires_in', 'Unknown')
 
         if not access_token:
@@ -134,7 +135,7 @@ def callback():
         print(f"Access Token Expires In: {expires_in} seconds")
 
         app_instance = App()
-        app_instance.fetch_profile(access_token)
+        app_instance.fetch_profile(access_token, membership_id)
 
         return "Authentication successful! You can close this window now."
     except Exception as e:
