@@ -51,10 +51,12 @@ class App(tk.Tk):
             'Authorization': f'Bearer {access_token}'
         }
     
-        url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/{membership_id}/"
+        url = "https://www.bungie.net/Platform/User/GetMembershipsForCurrentUser/"
     
         # Debug: Print access token before making the request
         print(f"Using Access Token: {access_token}")
+        print(f"Making API request to: {url}")
+        print(f"Request Headers: {headers}")
     
         response = requests.get(url, headers=headers)
     
@@ -100,7 +102,6 @@ class App(tk.Tk):
     def display_user_user(self, username):
         self.user_name_label.config(text=f"Welcome, {username}")
         
-@app.route('/callback')
 @app.route('/callback')
 def callback():
     try:
