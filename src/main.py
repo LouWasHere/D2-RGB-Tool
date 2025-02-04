@@ -194,6 +194,8 @@ class App(tk.Tk):
                     equipped_subclass = item["itemHash"]
                     break
     
+            print(f"🟢 Equipped Subclass Hash: {equipped_subclass}")
+    
             if equipped_subclass:
                 # Fetch subclass name from the cached data
                 subclass_name = self.get_subclass_name_from_cache(equipped_subclass)
@@ -205,7 +207,7 @@ class App(tk.Tk):
             self.after(0, self.display_subclass, subclass_name)
     
             # Schedule next update in 5 seconds
-            self.after(2500, lambda: self.fetch_profile(access_token, membership_id, membership_type))
+            self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
     
         threading.Thread(target=fetch_data).start()
     
@@ -234,7 +236,7 @@ class App(tk.Tk):
         subclass_name = subclass_name.lower()
         if subclass_name == "nightstalker" or subclass_name == "voidwalker" or subclass_name == "sentinel":
             for device in client.devices:
-                device.set_color(RGBColor(184,132,220))
+                device.set_color(RGBColor(135,82,171))
         elif subclass_name == "arcstrider" or subclass_name == "stormcaller" or subclass_name == "striker":
             for device in client.devices:
                 device.set_color(RGBColor(128,188,236))
@@ -243,13 +245,13 @@ class App(tk.Tk):
                 device.set_color(RGBColor(248,100,28))
         elif subclass_name == "shadebinder" or subclass_name == "revenant" or subclass_name == "behemoth":
             for device in client.devices:
-                device.set_color(RGBColor(60,84,200))
+                device.set_color(RGBColor(33,54,156))
         elif subclass_name == "broodweaver" or subclass_name == "beserker" or subclass_name == "threadrunner":
             for device in client.devices:
                 device.set_color(RGBColor(56,228,100))
         elif "prismatic" in subclass_name:
             for device in client.devices:
-                device.set_color(RGBColor(182,108,154))
+                device.set_color(RGBColor(250,72,183))
         else:
             for device in client.devices:
                 device.set_color(RGBColor(158,24,227))
