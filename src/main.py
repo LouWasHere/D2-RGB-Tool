@@ -5,6 +5,7 @@ from flask import Flask, request, redirect
 import requests
 import webbrowser
 import os
+import sys
 import json
 import threading
 from openrgb import OpenRGBClient
@@ -71,7 +72,7 @@ def get_subclass_hashes():
     print(f"🟢 Found {len(subclass_supers)} Subclasses")
     return subclass_supers
 
-def get_cached_subclass_hashes():
+def get_cached_subclass_hashes(app_instance):
     """Load subclass hashes from a local cache file if available, otherwise fetch new data."""
     if os.path.exists(CACHE_FILE):
         with open(CACHE_FILE, "r") as f:
@@ -79,7 +80,9 @@ def get_cached_subclass_hashes():
 
     # If no cache exists, fetch fresh data
     print("🟢 No cache found. Fetching subclass hashes...")
+    app_instance.after(0, app_instance.show_download_indicator)
     subclass_data = get_subclass_hashes()
+    app_instance.after(0, app_instance.hide_download_indicator)
 
     return subclass_data
 
@@ -99,6 +102,9 @@ class App(tk.Tk):
         self.sign_in_button = tk.Button(self, text="Sign In with Bungie.net", command=self.sign_in)
         self.sign_in_button.pack(pady=20)
 
+        self.download_label = tk.Label(self, text="", font=("Arial", 12))
+        self.download_label.pack(pady=5)
+
     def sign_in(self):
         bungie = OAuth2Session(CLIENT_ID, redirect_uri=REDIRECT_URI)
         authorization_url, state = bungie.authorization_url(authorization_base_url)
@@ -109,7 +115,14 @@ class App(tk.Tk):
         self.wait_for_callback()
 
     def wait_for_callback(self):
-        flask_thread = threading.Thread(target=app.run, kwargs={'ssl_context': ('cert.pem', 'key.pem'), 'port': 8080})
+        if hasattr(sys, '_MEIPASS'):
+            cert_path = os.path.join(sys._MEIPASS, 'cert.pem')
+            key_path = os.path.join(sys._MEIPASS, 'key.pem')
+        else:
+            cert_path = 'cert.pem'
+            key_path = 'key.pem'
+        
+        flask_thread = threading.Thread(target=app.run, kwargs={'ssl_context': (cert_path, key_path), 'port': 8080})
         flask_thread.daemon = True
         flask_thread.start()
 
@@ -192,7 +205,7 @@ class App(tk.Tk):
             self.after(0, self.display_subclass, subclass_name)
     
             # Schedule next update in 5 seconds
-            self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
+            self.after(2500, lambda: self.fetch_profile(access_token, membership_id, membership_type))
     
         threading.Thread(target=fetch_data).start()
     
@@ -205,10 +218,9 @@ class App(tk.Tk):
         """Update the UI to show the current subclass."""
         self.after(0, lambda: self.subclass_label.config(text=f"Subclass: {subclass_name}"))
 
-
     def get_subclass_name_from_cache(self, subclass_hash):
         """Fetch the subclass name from the cached subclass data."""
-        subclass_supers = get_cached_subclass_hashes()
+        subclass_supers = get_cached_subclass_hashes(self)
 
         subclass_data = subclass_supers.get(str(subclass_hash), None)
         if subclass_data:
@@ -241,6 +253,14 @@ class App(tk.Tk):
         else:
             for device in client.devices:
                 device.set_color(RGBColor(158,24,227))
+
+    def show_download_indicator(self):
+        """Show the download indicator."""
+        self.download_label.config(text="Downloading Data from Bungie...")
+
+    def hide_download_indicator(self):
+        """Hide the download indicator."""
+        self.download_label.config(text="")
 
 @app.route('/callback')
 def callback():
