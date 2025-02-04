@@ -109,7 +109,7 @@ class App(tk.Tk):
         self.wait_for_callback()
 
     def wait_for_callback(self):
-        flask_thread = threading.Thread(target=app.run, kwargs={'ssl_context': 'adhoc', 'port': 8080})
+        flask_thread = threading.Thread(target=app.run, kwargs={'ssl_context': ('cert.pem', 'key.pem'), 'port': 8080})
         flask_thread.daemon = True
         flask_thread.start()
 
