@@ -14,7 +14,13 @@ from cryptography.fernet import Fernet
 
 # Function to read and decrypt the API key
 def get_decrypted_api_key():
-    with open('key.txt', 'r') as file:
+    # Determine the path to the key.txt file
+    if hasattr(sys, '_MEIPASS'):
+        key_file_path = os.path.join(sys._MEIPASS, 'key.txt')
+    else:
+        key_file_path = 'key.txt'
+
+    with open(key_file_path, 'r') as file:
         lines = file.readlines()
         key = lines[0].strip().split(': ')[1].encode()
         encrypted_api_key = lines[1].strip().split(': ')[1].encode()
