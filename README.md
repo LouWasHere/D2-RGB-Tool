@@ -1,4 +1,4 @@
-﻿# DR-RGB-TOOL
+﻿# D2-RGB-TOOL
 
 A tool that dynamically interfaces with an OpenRGB server and syncs your RGB system to the current subclass of your most recently played Guardian in Destiny 2. 
 
