@@ -10,10 +10,22 @@ import json
 import threading
 from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor
+from cryptography.fernet import Fernet
+
+# Function to read and decrypt the API key
+def get_decrypted_api_key():
+    with open('key.txt', 'r') as file:
+        lines = file.readlines()
+        key = lines[0].strip().split(': ')[1].encode()
+        encrypted_api_key = lines[1].strip().split(': ')[1].encode()
+
+    cipher_suite = Fernet(key)
+    decrypted_api_key = cipher_suite.decrypt(encrypted_api_key).decode()
+    return decrypted_api_key
 
 # Bungie API Client Details
 CLIENT_ID = '48933'
-API_KEY = os.getenv('BUNGIE_API_KEY')
+API_KEY = get_decrypted_api_key()
 REDIRECT_URI = 'https://localhost:8080/callback'
 
 # OAuth Endpoints
