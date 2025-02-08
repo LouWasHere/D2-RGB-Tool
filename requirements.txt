@@ -1,0 +1,6 @@
+tk
+requests
+requests_oauthlib
+flask
+openrgb-python
+cryptography
