@@ -190,7 +190,7 @@ class App(tk.Tk):
             RGBColor(255, 0, 255),    # Void purple
             RGBColor(128, 188, 236),  # Arc blue
             RGBColor(248, 100, 28),   # Solar orange
-            RGBColor(33, 54, 156),    # Stasis blue
+            RGBColor(33, 54, 255),    # Stasis blue
             RGBColor(56, 228, 100),   # Strand green
         ]
         self.prismatic_color_index = 0
@@ -205,6 +205,9 @@ class App(tk.Tk):
         # Tray variables
         self.tray_icon = None
         self.is_minimized_to_tray = False
+        
+        # Active/Inactive mode
+        self.active_mode = True
 
         self.user_name_label = tk.Label(self, text="Please Sign In", font=("Arial", 14))
         self.user_name_label.pack(pady=10)
@@ -222,6 +225,10 @@ class App(tk.Tk):
         self.logout_button = tk.Button(self, text="Logout", command=self.logout)
         self.logout_button.pack(pady=10)
         self.logout_button.pack_forget()  # Initially hidden
+        
+        # Add toggle mode button
+        self.mode_button = tk.Button(self, text="Mode: Active", command=self.toggle_mode)
+        self.mode_button.pack(pady=5)
         
         # Override close button to minimize to tray
         self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
@@ -355,8 +362,11 @@ class App(tk.Tk):
             # Update UI safely on the main thread
             self.after(0, self.display_subclass, subclass_name)
     
-            # Schedule next update in 5 seconds
-            self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
+            # Schedule next update in 5 seconds only if in active mode
+            if self.active_mode:
+                self.after(5000, lambda: self.fetch_profile(access_token, membership_id, membership_type))
+            else:
+                print("🟡 Profile fetching paused (inactive mode)")
     
         threading.Thread(target=fetch_data).start()
     
@@ -381,9 +391,25 @@ class App(tk.Tk):
             print(f"❌ Subclass Hash Not Found: {subclass_hash}")
             return "Unknown Subclass"
     
+    def toggle_mode(self):
+        """Toggle between active and inactive modes."""
+        self.active_mode = not self.active_mode
+        mode_text = "Active" if self.active_mode else "Inactive"
+        self.mode_button.config(text=f"Mode: {mode_text}")
+        
+        if not self.active_mode:
+            # Set to default color when inactive
+            self.prismatic_cycling = False
+            if client:
+                for device in client.devices:
+                    device.set_color(RGBColor(255, 0, 255))
+            print(f"🟡 Mode switched to: {mode_text}")
+        else:
+            print(f"🟢 Mode switched to: {mode_text}")
+    
     def update_motherboard_led(self, subclass_name):
         """Update the motherboard LED based on the subclass name."""
-        if not client:
+        if not client or not self.active_mode:
             return
             
         subclass_name = subclass_name.lower()
@@ -403,7 +429,7 @@ class App(tk.Tk):
                 device.set_color(RGBColor(248,100,28))
         elif subclass_name == "shadebinder" or subclass_name == "revenant" or subclass_name == "behemoth":
             for device in client.devices:
-                device.set_color(RGBColor(33,54,156))
+                device.set_color(RGBColor(33,54,255))
         elif subclass_name == "broodweaver" or subclass_name == "beserker" or subclass_name == "threadrunner":
             for device in client.devices:
                 device.set_color(RGBColor(56,228,100))
@@ -413,20 +439,48 @@ class App(tk.Tk):
                 self.start_prismatic_cycle()
         else:
             for device in client.devices:
-                device.set_color(RGBColor(158,24,227))
+                device.set_color(RGBColor(255,0,255))
 
     def start_prismatic_cycle(self):
-        """Start the prismatic color cycling effect."""
+        """Start the prismatic color cycling effect with smooth transitions."""
+        self.prismatic_step = 0
+        self.prismatic_steps_per_color = 50  # Number of steps to transition between colors
+        
+        def interpolate_color(color1, color2, factor):
+            """Interpolate between two colors. factor should be between 0 and 1."""
+            r = int(color1.red + (color2.red - color1.red) * factor)
+            g = int(color1.green + (color2.green - color1.green) * factor)
+            b = int(color1.blue + (color2.blue - color1.blue) * factor)
+            return RGBColor(r, g, b)
+        
         def cycle_colors():
             if self.prismatic_cycling and client:
-                current_color = self.prismatic_colors[self.prismatic_color_index]
+                # Calculate current and next color indices
+                current_color_index = self.prismatic_color_index
+                next_color_index = (self.prismatic_color_index + 1) % len(self.prismatic_colors)
+                
+                # Calculate interpolation factor (0 to 1)
+                factor = self.prismatic_step / self.prismatic_steps_per_color
+                
+                # Get interpolated color
+                current_color = self.prismatic_colors[current_color_index]
+                next_color = self.prismatic_colors[next_color_index]
+                interpolated_color = interpolate_color(current_color, next_color, factor)
+                
+                # Set the color on all devices
                 for device in client.devices:
-                    device.set_color(current_color)
+                    device.set_color(interpolated_color)
                 
-                self.prismatic_color_index = (self.prismatic_color_index + 1) % len(self.prismatic_colors)
+                # Update step counter
+                self.prismatic_step += 1
                 
-                # Schedule the next color change in 5 seconds
-                self.after(5000, cycle_colors)
+                # Check if we've completed the transition to the next color
+                if self.prismatic_step >= self.prismatic_steps_per_color:
+                    self.prismatic_step = 0
+                    self.prismatic_color_index = (self.prismatic_color_index + 1) % len(self.prismatic_colors)
+                
+                # Schedule the next color change (faster for smooth transitions)
+                self.after(100, cycle_colors)  # 100ms = smooth transitions
         
         cycle_colors()
 
@@ -447,6 +501,7 @@ class App(tk.Tk):
             # Create tray menu
             menu = pystray.Menu(
                 pystray.MenuItem("Show", self.show_window),
+                pystray.MenuItem("Toggle Mode", self.toggle_mode_tray),
                 pystray.MenuItem("Logout", self.logout),
                 pystray.MenuItem("Exit", self.quit_app)
             )
@@ -461,6 +516,10 @@ class App(tk.Tk):
             
             # Run tray icon in separate thread
             threading.Thread(target=self.tray_icon.run, daemon=True).start()
+    
+    def toggle_mode_tray(self, icon=None, item=None):
+        """Toggle mode from system tray menu."""
+        self.toggle_mode()
     
     def show_window(self, icon=None, item=None):
         """Show the main window from tray."""
