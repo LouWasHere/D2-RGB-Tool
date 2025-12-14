@@ -208,6 +208,7 @@ class App(tk.Tk):
         
         # Active/Inactive mode
         self.active_mode = True
+        self.current_subclass = "Unknown Subclass"
 
         self.user_name_label = tk.Label(self, text="Please Sign In", font=("Arial", 14))
         self.user_name_label.pack(pady=10)
@@ -356,6 +357,9 @@ class App(tk.Tk):
                 # Fetch subclass name from the cached data
                 subclass_name = self.get_subclass_name_from_cache(equipped_subclass)
             
+            # Store current subclass for mode toggling
+            self.current_subclass = subclass_name
+            
             # Update the motherboard LED based on the subclass name
             self.after(0, lambda: self.update_motherboard_led(subclass_name))
     
@@ -405,6 +409,12 @@ class App(tk.Tk):
                     device.set_color(RGBColor(255, 0, 255))
             print(f"🟡 Mode switched to: {mode_text}")
         else:
+            # Restore current subclass color when switching to active
+            if client and self.current_subclass != "Unknown Subclass":
+                self.update_motherboard_led(self.current_subclass)
+            # Resume profile fetching if logged in
+            if self.access_token and self.membership_id:
+                self.fetch_profile(self.access_token, self.membership_id, self.membership_type)
             print(f"🟢 Mode switched to: {mode_text}")
     
     def update_motherboard_led(self, subclass_name):
