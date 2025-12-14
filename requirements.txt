@@ -1,6 +1,9 @@
-tk
-requests
-requests_oauthlib
-flask
-openrgb-python
-cryptography
+requests==2.31.0
+requests-oauthlib==1.3.1
+flask==3.0.0
+openrgb-python==0.3.0
+cryptography==41.0.7
+psutil==7.1.3
+pystray==0.19.5
+pillow==10.1.0
+pyinstaller==6.3.0
